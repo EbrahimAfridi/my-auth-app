@@ -7,43 +7,61 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Login } from "./pages/Login";
 import { Home } from "./pages/Home";
 import { AuthCallback } from "./components/AuthCallback";
+import { Hub } from "@aws-amplify/core";
 
-// In your main App.tsx or index.tsx
+// Global error and auth event handling
 window.addEventListener("error", (event) => {
   console.error("Global error:", event.error);
 });
 
-// Listen for auth events globally
-import { Hub } from "@aws-amplify/core";
+// Centralized Hub listener for debugging
 Hub.listen("auth", (data) => {
-  console.log("Auth event:", data.payload.event, data.payload);
+  console.log("🌐 Global Auth Event:", data.payload.event, data.payload);
 });
 
-function App() {
+// Prevent multiple initializations
+let isConfigured = false;
+
+// Create a wrapper component that initializes Amplify
+function AmplifyInitializer({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    // Initialize Amplify when the app loads
-    configureAmplify();
+    if (!isConfigured) {
+      configureAmplify();
+      isConfigured = true;
+    }
   }, []);
 
+  return <>{children}</>;
+}
+
+function AppRoutes() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/auth/callback" element={<AuthCallback />} />
+    <Routes>
+      {/* Public routes */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
 
-          {/* Protected routes */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<Home />} />
-            {/* Add other protected routes here */}
-          </Route>
+      {/* Protected routes */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/" element={<Home />} />
+        {/* Add other protected routes here */}
+      </Route>
 
-          {/* Redirect any unknown routes to home */}
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+      {/* Redirect any unknown routes to home */}
+      <Route path="*" element={<Navigate to="/" />} />
+    </Routes>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AmplifyInitializer>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </AmplifyInitializer>
+    </BrowserRouter>
   );
 }
 

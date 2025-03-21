@@ -5,11 +5,19 @@ import { useAuth } from "../context/AuthContext";
 export function ProtectedRoute() {
   const { isAuthenticated, isLoading } = useAuth();
 
+  console.log(
+    `🛡️ ProtectedRoute check - Authenticated: ${isAuthenticated}, Loading: ${isLoading}`
+  );
+
   if (isLoading) {
-    // Show a loading spinner or message while checking auth state
-    return <div>Loading authentication status...</div>;
+    return (
+      <div className="loading-container">
+        <h2>Loading</h2>
+        <p>Verifying your authentication...</p>
+      </div>
+    );
   }
 
-  // Redirect to login if not authenticated, otherwise render the protected content
-  return isAuthenticated ? <Outlet /> : <Navigate to="/login" />;
+  // Let the component decide routing solely based on auth state
+  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
 }
