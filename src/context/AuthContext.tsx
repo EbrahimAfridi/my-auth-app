@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await signOut({
         global: true,
         oauth: {
-          redirectUrl: 'http://localhost:5173/login',
+          redirectUrl: "http://localhost:5173/login",
         },
       });
 
@@ -100,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }, 1000);
     } catch (error) {
       console.error("Error signing out:", error);
+      // Still sign out locally even if there's an error with Cognito
       setIsAuthenticated(false);
       setUser(null);
     }

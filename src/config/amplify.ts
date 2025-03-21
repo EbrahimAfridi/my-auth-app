@@ -15,7 +15,10 @@ export function configureAmplify() {
             domain: "us-east-1jblcar49o.auth.us-east-1.amazoncognito.com",
             scopes: ["email", "profile", "openid"],
             redirectSignIn: ["http://localhost:5173/"],
-            redirectSignOut: ["http://localhost:5173/"],
+            redirectSignOut: [
+              "http://localhost:5173/",
+              "http://localhost:5173/login",
+            ],
             responseType: "code",
           },
         },
