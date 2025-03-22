@@ -1,27 +1,93 @@
-// src/pages/Login.tsx - with embedded Google logo
-import { useState } from "react";
+// src/pages/Login.tsx
+import { useState, FormEvent } from "react";
 import { useAuth } from "../context/AuthContext";
+import { Link } from "react-router-dom";
 import "./Login.css";
 
 export function Login() {
-  const { signInWithGoogle } = useAuth();
-  const [error, setError] = useState(null);
+  const { signInWithGoogle, signInWithEmail } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleEmailSignIn = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!email || !password) {
+      setError("Email and password are required");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      await signInWithEmail(email, password);
+    } catch (err: any) {
+      setError(err.message || "Login failed. Please check your credentials.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleGoogleSignIn = async () => {
     try {
       setError(null);
       await signInWithGoogle();
-    } catch (err) {
+    } catch (err: any) {
       setError(`Sign-in error: ${err.message || JSON.stringify(err)}`);
     }
   };
+
   return (
     <div className="login-container">
       <div className="login-card">
-        <h1>Welcome</h1>
-        <p>Please sign in to continue</p>
+        <h1>Welcome Back</h1>
+        <p>Sign in to continue</p>
+
         {error && <div className="error-message">{error}</div>}
-        <button className="google-button" onClick={handleGoogleSignIn}>
-          {/* Embedded Google G logo SVG instead of external URL */}
+
+        {/* Email/Password Form */}
+        <form onSubmit={handleEmailSignIn} className="login-form">
+          <div className="form-group">
+            <label htmlFor="email">Email</label>
+            <input
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <input
+              type="password"
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              disabled={isLoading}
+            />
+          </div>
+
+          <button type="submit" className="login-button" disabled={isLoading}>
+            {isLoading ? "Signing In..." : "Sign In"}
+          </button>
+        </form>
+
+        <div className="divider">
+          <span>OR</span>
+        </div>
+
+        {/* Google Sign In Button */}
+        <button
+          className="google-button"
+          onClick={handleGoogleSignIn}
+          disabled={isLoading}
+        >
           <svg
             className="google-icon"
             xmlns="http://www.w3.org/2000/svg"
@@ -46,8 +112,17 @@ export function Login() {
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
             />
           </svg>
-          Sign in with Google
+          Sign In with Google
         </button>
+
+        <div className="auth-links">
+          <p>
+            Don't have an account? <Link to="/register">Sign up</Link>
+          </p>
+          <p>
+            <Link to="/forgot-password">Forgot password?</Link>
+          </p>
+        </div>
       </div>
     </div>
   );
