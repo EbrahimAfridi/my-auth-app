@@ -1,3 +1,4 @@
+import { fetchAuthSession } from "aws-amplify/auth";
 // src/context/AuthContext.tsx - updated with email/password authentication
 import {
   createContext,
@@ -31,7 +32,7 @@ interface AuthContextType {
     username: string,
     email: string,
     password: string
-  ) => Promise<void>;
+  ) => Promise<string | undefined>;
   confirmRegistration: (username: string, code: string) => Promise<void>;
   forgotPassword: (username: string) => Promise<void>;
   confirmForgotPassword: (
@@ -50,6 +51,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<any>(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Add this utility function to calculate SECRET_HASH
+  async function calculateSecretHash(
+    username: any,
+    clientId: any,
+    clientSecret: any
+  ) {
+    try {
+      const encoder = new TextEncoder();
+      const message = encoder.encode(username + clientId);
+      const keyData = encoder.encode(clientSecret);
+
+      const key = await window.crypto.subtle.importKey(
+        "raw",
+        keyData,
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["sign"]
+      );
+
+      const signature = await window.crypto.subtle.sign("HMAC", key, message);
+      return btoa(String.fromCharCode(...new Uint8Array(signature)));
+    } catch (error) {
+      console.error("Error calculating SECRET_HASH:", error);
+      throw error;
+    }
+  }
 
   // Use useCallback to prevent unnecessary re-renders
   const checkAuthState = useCallback(async () => {
@@ -141,16 +169,97 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       console.error("❌ Error initiating Google sign-in:", error);
       throw error;
+    } finally {
+      const session = await fetchAuthSession();
+      console.log(session, "session");
     }
   }
+
+  // Handle authentication after redirect
+  // async function handlePostAuthRedirect() {
+  //   try {
+  //     console.log("🔄 Checking authentication status...");
+
+  //     // Try to get the current authenticated user
+  //     const user = await getCurrentUser();
+
+  //     if (user) {
+  //       console.log("✅ User is authenticated");
+
+  //       // Get the session which contains tokens
+  //       const session = await fetchAuthSession();
+
+  //       // Get the access token
+  //       const accessToken = session.tokens?.accessToken?.toString();
+
+  //       if (accessToken) {
+  //         console.log("🔑 Access token obtained");
+
+  //         // Send the token to the bridge URL
+  //         await sendTokenToBridge(accessToken);
+  //       } else {
+  //         console.error("❌ No access token found in the session");
+  //       }
+  //     } else {
+  //       console.log("ℹ️ User not authenticated");
+  //     }
+  //   } catch (error) {
+  //     console.error("❌ Error handling authentication:", error);
+  //   }
+  // }
+
+  // Function to send the token to the bridge
+  // async function sendTokenToBridge(token) {
+  //   const bridgeUrl = "http://localhost:3000/_oauth/bridge2ps";
+
+  //   try {
+  //     console.log("📤 Sending token to bridge URL...");
+  //     const response = await fetch(bridgeUrl, {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({ token }),
+  //     });
+
+  //     if (response.ok) {
+  //       console.log("✅ Token successfully sent to bridge");
+  //       return await response.json();
+  //     } else {
+  //       console.error("❌ Failed to send token to bridge:", await response.text());
+  //       throw new Error(`Failed to send token: ${response.status} ${response.statusText}`);
+  //     }
+  //   } catch (error) {
+  //     console.error("❌ Error sending token to bridge:", error);
+  //     throw error;
+  //   }
+  // }
+
+  // // Call this function when the page loads to handle authentication after redirect
+  // document.addEventListener("DOMContentLoaded", handlePostAuthRedirect);
 
   // Email/Password Sign-In
   async function signInWithEmail(email: string, password: string) {
     try {
       console.log("🔑 Signing in with email and password...");
+      const secretHash = await calculateSecretHash(
+        email,
+        "15uj23gg14qthp49qvovu23d42",
+        "1ek6i4t2ejl9cj00ic0ua474a5tm33l8tafh3mjlfc1pl7qapbie"
+      );
       const { isSignedIn, nextStep } = await signIn({
         username: email,
         password,
+        options: {
+          SECRET_HASH: secretHash,
+          authFlowType: "USER_PASSWORD_AUTH",
+          authParameters: {
+            SECRET_HASH: secretHash,
+          },
+          clientMetadata: {
+            SECRET_HASH: secretHash,
+          },
+        },
       });
 
       if (isSignedIn) {
@@ -158,7 +267,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await checkAuthState();
       } else if (nextStep) {
         console.log("⏭️ Additional steps required:", nextStep);
-
         // Handle various next steps like confirming sign-up or changing password
         if (nextStep.signInStep === "CONFIRM_SIGN_UP") {
           navigate("/confirm-registration", {
@@ -169,7 +277,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error: any) {
       console.error("❌ Email sign-in error:", error);
-
       // Handle specific error types
       if (error.name === "UserNotConfirmedException") {
         navigate("/confirm-registration", {
